@@ -1,6 +1,7 @@
 import pika
 import logging
 import ssl as ssl_package
+import time
 
 from incubator.communication.shared.protocol import *
 
@@ -56,10 +57,28 @@ class Rabbitmq:
         return self
 
     def connect_to_server(self):
-        self.connection = pika.BlockingConnection(self.parameters)
-        self._l.debug("Connected.")
-        self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=self.exchange_name, exchange_type=self.exchange_type)
+        max_retries = 12  # Try for about 1 minute (12 * 5 seconds)
+        retry_count = 0
+        
+        while True:
+            try:
+                self._l.debug(f"Attempting to connect to RabbitMQ (attempt {retry_count + 1}/{max_retries})...")
+                self.connection = pika.BlockingConnection(self.parameters)
+                self._l.debug("Connected.")
+                self.channel = self.connection.channel()
+                self.channel.exchange_declare(exchange=self.exchange_name, exchange_type=self.exchange_type)
+                return  # Success, exit the retry loop
+            except pika.exceptions.AMQPConnectionError as error:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    self._l.error(f"Failed to connect after {max_retries} attempts. Last error: {error}")
+                    raise  # Re-raise the exception if max retries reached
+                
+                self._l.warning(f"Connection failed: {error}. Retrying in 5 seconds...")
+                time.sleep(5)
+            except Exception as e:
+                self._l.error(f"Unexpected error while connecting: {e}")
+                raise  # For unexpected exceptions, don't retry
 
     def send_message(self, routing_key, message, properties=None):
         self.channel.basic_publish(exchange=self.exchange_name,
