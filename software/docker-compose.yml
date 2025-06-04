@@ -1,33 +1,26 @@
-services:
-  influxdb:
+version: '3' 
+services: 
+  influxdb: 
     image: influxdb
-    build : ./digital_twin/data_access/influxdbserver
-    ports:
+    ports: 
       - 8086:8086
       - 8088:8088
-    volumes:
-      - "./digital_twin/data_access/influxdbserver/influxdb:/var/lib/influxdb/"
-    networks:
-      - app-network
-  rabbitmq:
+    volumes: 
+      - ./digital_twin/data_access/influxdbserver/influxdb:/var/lib/influxdb/
+    networks: 
+       - app-network
+  rabbitmq: 
     image: rabbitmq
-    build : ./incubator/communication/installation
-    ports:
+    ports: 
       - 5672:5672
       - 15672:15672
       - 1883:1883
-    networks:
-      - app-network
-  incubator:
+    networks: 
+       - app-network
+  incubator: 
     image: incubator
-    build : ./
-    depends_on:
-      - rabbitmq
-      - influxdb
-    networks:
-      - app-network
-
+    networks: 
+       - app-network
 networks:
   app-network:
     driver: bridge
-
